@@ -1,0 +1,20 @@
+#本服务从Nacos Server中获取配置
+
+#server:
+#  port: 8081
+#
+#spring:
+#  application:
+#    name: NacosProvider
+##    配置Nacos Server地址
+#  cloud:
+#    nacos:
+#      discovery:
+#        server-addr: 139.196.88.44:8848
+#
+##启动所有的Spring Boot Actuator检测项(即暴露所有的端点Endpoints)
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: "*"

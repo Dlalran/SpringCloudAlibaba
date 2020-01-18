@@ -1,0 +1,9 @@
+2020-01-15 22:39:04,963 INFO listen for service meta change
+
+2020-01-15 22:39:09,458 INFO [SERVER-INIT] got port: 8848
+
+2020-01-15 22:39:09,458 INFO [SERVER-INIT] got path: /nacos
+
+2020-01-15 22:39:10,776 INFO receive config info: unknown#192.168.3.9:8848#1579099150776#4
+
+

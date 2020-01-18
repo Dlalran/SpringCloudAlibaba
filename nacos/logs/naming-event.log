@@ -1,0 +1,4 @@
+2020-01-07 00:38:54,903 INFO DEFAULT_GROUP@@NacosClient {SYNC} {IP-NEW} cluster: DEFAULT, new ips size: 1, content: [172.16.36.69:8082:unknown:DEFAULT_1.0_true_false_DEFAULT]
+
+2020-01-07 00:38:54,907 INFO [IP-UPDATED] namespace: public, service: DEFAULT_GROUP@@NacosClient, ips: 172.16.36.69:8082_true,
+

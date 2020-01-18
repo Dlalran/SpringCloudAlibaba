@@ -1,0 +1,23 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: FeignConsumer
+  #    配置Nacos Server地址
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+#    Sentinel控制台监控配置
+    sentinel:
+      transport:
+#        指定该服务提供监控信息的端口
+        port: 8719
+#        指定控制台地址
+        dashboard: localhost:8080
+
+#开启Sentinel支持
+feign:
+  sentinel:
+    enabled: true

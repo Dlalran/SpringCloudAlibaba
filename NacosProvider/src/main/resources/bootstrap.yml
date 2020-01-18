@@ -1,0 +1,18 @@
+#Nacos Server远程配置以及多环境配置
+
+#此例实际检索的配置文件名为 应用名-环境名.后缀名
+spring:
+#  指定使用的环境名
+#  profiles:
+#    active: dev
+#  此处配置的不是应用名，而是Nacos配置中心中的配置ID，实际应用名在配置中指定
+  application:
+    name: nacosprovider-config
+
+  cloud:
+    nacos:
+      config:
+#        配置文件后缀，不配置则默认为properties，
+        file-extension: yml
+#        Nacos Server地址
+        server-addr: http://139.196.88.44:8848

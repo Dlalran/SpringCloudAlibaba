@@ -1,0 +1,30 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: SpringCloudGateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    gateway:
+#      开启基于服务发现的根据服务名转发的路由策略
+      discovery:
+        locator:
+          enabled: true
+#      配置路由规则
+      routes:
+#          路由映射名
+        - id: feign_consumer
+#          路由映射地址，采用LoadBalancerClient方式转发时，则配置为lb://服务注册名
+          uri: lb://FeignConsumer
+#          路由谓词，即拦截并转发的判断条件，例如请求路径、方式、时间等
+          predicates:
+            - Method=GET,POST
+
+#    Sentinel控制台监控配置
+    sentinel:
+      transport:
+        port: 8720
+        dashboard: localhost:8080
