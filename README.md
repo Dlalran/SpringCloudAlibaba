@@ -1,5 +1,3 @@
-[toc]
-
 # Spring Cloud Alibaba
 
 **官网：[Spring Cloud Alibaba](https://github.com/alibaba/spring-cloud-alibaba/blob/master/README-zh.md)**
@@ -32,8 +30,9 @@
 
 #### 配置并使用Nacos Server
 
-1. 从[Nacos GitHub](https://github.com/alibaba/nacos/releases)中下载Nacos Server压缩包，解压并打开目录`nacos/bin/startup.cmd`启动Nacos服务中心
-2. 通过`http://localhost:8848/nacos`访问服务中心，默认用户名密码均为nacos
+1. 从[Nacos GitHub](https://github.com/alibaba/nacos/releases)中下载Nacos Server压缩包
+2. 解压并打开目录`nacos/bin/startup.cmd`启动Nacos服务中心，如果是linux则通过目录`sh startup.sh -m standalone`启动
+3. 通过`http://localhost:8848/nacos`访问服务中心，默认用户名密码均为nacos
 
 
 
@@ -564,7 +563,218 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
 ​		官网：[Apache SkyWalking](http://skywalking.apache.org/zh/)
 
-​		分布式系统的应用程序性能监视工具，专为微服务、云原生架构和基于容器（Docker、K8s、Mesos）架构而设计。
+​		分布式系统的应用程序性能监视工具(APM)，专为微服务、云原生架构和基于容器（Docker、K8s、Mesos）架构而设计，被用于对于微服务架构的分布式系统进行链路追踪、服务监控与诊断。
+
+#### 安装ElasticSearch
+
+​		一般使用ElasticSearch代替默认的H2对SkyWalking进行数据存储，因此需要先搭建ElasticSearch，版本最好低于7。
+
+##### 安装包安装
+
+- 从[官网](https://www.elastic.co/cn/downloads/past-releases#elasticsearch)下载对应版本安装包
+- 上传并解压缩安装包
+
+```
+tar -zxvf ./elasticsearch-[版本号].tar.gz
+```
+
+- 修改系统配置
+
+1. 通过命令`vi /etc/security/limits.conf`打开文件，修改单个应用最大创建文件数为65536以及用户最大创建进程数修改为4096，在文件末尾处添加以下内容。
+
+```
+es soft nofile 65536
+es hard nofile 65536
+es soft nproc 4096
+es hard nproc 4096
+```
+
+2. 通过命令`vi /etc/sysctl.conf`打开文件，修改应用可创建最大虚拟内存大小为262144
+
+```
+vm.max_map_count=262144
+```
+
+3. 使上述配置生效
+
+```
+sysctl -p
+```
+
+- ElasticSearch要求在非root系统用户下运行，因此创建一个系统用户并设置密码
+
+```
+useradd [用户名]
+password [用户名]
+```
+
+- 将ElasticSearch目录所有权赋给新用户
+
+```
+chown -R es elasticsearch-[版本名]
+```
+
+- 通过`su [用户名]`切换用户，并打开ElasticSearch目录`config`下`elasticsearch.yml`配置文件，修改以下配置，记得删除注释并空一个格
+
+```
+ network.host: 0.0.0.0
+```
+
+- 进入`bin`目录并后台运行ElasticSearch
+
+```
+./elasticsearch -d
+```
+
+- 访问`http://[ES所在地址]:9200`，如果获得ElasticsSearch返回的JSON串则成功搭建
+
+
+
+##### Docker安装
+
+- `docker pull elasticsearch:[版本号]`拉取ElasticSearch镜像，版本号可以到Docker Hub查询。
+
+- `docker run -d -p 9200:9200 -p 9300:9300 -e "discovery.type=single-node" --name es elasticsearch:[版本号]`创建并启动ES容器，并暴露9200和9300端口
+
+- 通过`docker exec -it es bash`进入容器，修改`config/elasticsearch.yml`，删除第一行`cluster.name`配置
+
+- 访问`http://[ES所在地址]:9200`，如果获得ElasticsSearch返回的JSON串则成功搭建
+
+  *测试中发现使用Docker安装的ES偶尔有不稳定现象，建议使用安装包安装。*
+
+  
+
+#### 安装SkyWalking 
+
+- 从[官方下载页](http://skywalking.apache.org/downloads/)下载SkyWalking
+
+- 修改配置文件
+
+  1. 解压后进入目录修改`\config\application.yml`文件，取消`storage.elasticsearch`的配置注释，将`storage.h2`的配置注释，并将`storage.elasticsearch.clusterNodes`的`localhost`替换为ElasticSearch所在的主机地址。
+  2. 修改`\webapp\webapp.yml`文件，将SkyWalking端口`server.port`修改为`13800`以避免端口冲突
+
+- 在`\bin`目录下，通过`sh startup.sh`启动SkyWalking
+
+- 通过`http://[SkyWalking所在地址]:13800`访问SkyWalking控制台，查看是否启动成功
+
+  *详细设置参数见[第三方文档](https://smooth.blog.csdn.net/article/details/96479544)*
+
+  
+
+#### 服务监控
+
+​		通过SkyWalking Agent对服务或服务器进行监控，可以将SkyWalking目录下的agent文件复制一份作为一个独立的SkyWalking Agent，并在`config\agent.config`中进行服务名和监控台地址配置，也可以在服务启动时通过运行参数动态指定。
+
+##### 监控Tomcat
+
+- 在Tomcat的目录下编辑`\bin\catalina.sh`文件，在文件顶部添加如下配置，运行时引入Skywalking客户端jar包
+
+```sh
+CATALINA_OPTS="$CATALINA_OPTS -javaagent:[SkyWalking目录]/agent/skywalking-agent.jar";
+export CATALINA_OPTS
+```
+
+- 修改Agent中的`config\agent.config`的服务名和SkyWalking监控台所在的主机名和端口
+
+- 部署项目war包到Tomcat中并启动
+
+##### 监控服务
+
+​		在项目运行时导入jar包，相关配置参数可以在运行参数中给出，也可以在agent的配置文件中给出。
+
+- jar方式启动服务，注意参数要先于`-jar`给出，以下是系统配置方式
+
+```
+java -javaagent:[agent目录]/agent/skywalking-agent.jar -Dskywalking.agent.service_name=[服务名] -Dskywalking.collector.backend_service=[SkyWalking监控台地址]:11800 -jar [服务jar包名]
+```
+
+​		以下是探针配置方式，下同
+
+```
+java -javaagent:[agent目录]/agent/skywalking-agent.jar=agent.service_name=[服务名],collector.backend_service=[SkyWalking监控台地址]:11800 -jar [服务jar包名]
+```
+
+- IDEA中运行服务，在运行配置-编辑配置-虚拟机选项中给定参数
+
+```
+-javaagent:[agent目录]/agent/skywalking-agent.jar -Dskywalking.agent.service_name=[服务名] -Dskywalking.collector.backend_service=[SkyWalking监控台地址]:11800
+```
+
+
+
+#### 链路追踪
+
+##### 链路日志
+
+​		通过链路工具在服务中获得当前链路ID、在链路追踪界面显示日志信息、添加标签等。
+
+- 添加SkyWalking链路工具依赖
+
+```xml
+<dependency>
+    <groupId>org.apache.skywalking</groupId>
+    <artifactId>apm-toolkit-trace</artifactId>
+    <version>${skywalking.version}</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+- 在服务中使用链路工具
+
+```java
+    @GetMapping("/trace")
+    public String testTrace() {
+//        在链路追踪界面显示日志信息
+        ActiveSpan.error(new RuntimeException("Test Error"));
+        ActiveSpan.info("Test Info");
+        ActiveSpan.debug("Test Debug");
+//        显示标签
+        ActiveSpan.tag("Test Tag", "Test Value");
+//        获取当前链路ID
+        return TraceContext.traceId();
+    }
+```
+
+- 服务被调用后，在Skywalking监控台的链路追踪中点击对应请求的链路信息，可以看到上面记录的日志信息
+
+##### 链路排除
+
+​		使用链路排除插件可以将指定路径的端点(如Spring MVC中Mapping注解中指定的路径)排除在监控范围内。
+
+- 将`/agent/optional-plugins`中链路排除插件`apm-trace-ignore-plugin-6.6.0.jar`放入`/agent/plugins`中
+- 在启动服务时添加参数`-Dskywalking.trace.ignore_path=[排除的端点路径]`，路径间通过逗号分割，支持Ant风格路径(即`?`匹配任意单个字符，`*`匹配任意数量字符，`**`匹配任意数量目录)
+
+
+
+#### 监控告警
+
+​		可以在配置中自定义告警规则，当指定监控指标达到一定规则限制时，将会在监控台发出告警，或将告警信息传输给自定义接口，并自行实现短信、邮件等辅助告警功能。
+
+​		告警规则在`/agent/config/alarm-settings.yml`中进行配置，其中默认有基本的告警规则，以下是示例，其中所有监控指标列表可以在`/agent/config/official_analysis.oal`中查看，`webhooks`中指定触发告警时将告警信息传输的接口，可以实现这个接口来进行如邮件通知等进一步的告警功能实现，详细见[官方文档](https://github.com/apache/skywalking/blob/master/docs/en/setup/backend/backend-alarm.md#rules)、[第三方文档](https://blog.51cto.com/zero01/2463976)。
+
+```yml
+rules:
+  # 规则名
+  service_resp_time_rule:
+    # 监控指标名
+    metrics-name: service_resp_time
+    # 比较操作符
+    op: ">"
+    # 阈值
+    threshold: 1000
+    # 检查周期，单位为分钟
+    period: 10
+    # 告警所需累计触发次数
+    count: 3
+    # 忽略相同告警的时间周期
+    silence-period: 5
+    # 告警信息
+    message: Response time of service {name} is more than 1000ms in 3 minutes of last 10 minutes.
+    
+webhooks:
+  - http://127.0.0.1/notify/
+  - http://127.0.0.1/go-wechat/
+```
 
 
 
@@ -574,7 +784,7 @@ public class AuthFilter implements GlobalFilter, Ordered {
 
 ​		官网：[Apache Dubbo](http://dubbo.apache.org/zh-cn/index.html), [Dubbo GitHub](https://github.com/apache/dubbo)
 
-​		**一种思想是内部服务间远程调用可以使用Dubbo进行RPC实现，外部的访问再通过REST(RestTemplate、Feign)进行实现。**
+​		一种思想是内部服务间远程调用可以使用Dubbo进行RPC实现，外部的访问再通过REST(RestTemplate、Feign)进行实现。
 
 ​		*此时的Dubbo仅作为RPC的一种实现，一般不使用其如负载均衡、服务降级等附加功能，因为这些功能将通过Spring Cloud Alibaba的组件进行实现。*
 
@@ -715,6 +925,8 @@ public interface ProviderService {
 
 ```yml
 dubbo:
+  application:
+    name: dubbo-provider
 #  扫描Dubbo注解的包，已在主配置类注解中指定
   #  scan:
   #    base-packages: priv.howard.dubboprovider.service
@@ -724,6 +936,7 @@ dubbo:
     port: 20880
 #    注册中心的地址，使用Nacos代替Zookeeper
   registry:
+    protocol: nacos
     address: nacos://localhost:8848
 ```
 
@@ -766,10 +979,13 @@ public class ProviderServiceImpl implements ProviderService {
 
 ```yml
 dubbo:
+  application:
+    name: dubbo-consumer
   protocol:
     name: dubbo
     port: 20880
   registry:
+    protocol: nacos
     address: nacos://localhost:8848
 
 #暴露Dubbo监控端点
@@ -791,7 +1007,25 @@ management:
         include: "*"
 ```
 
-3. 访问服务消费者测试是否能够间接调用服务提供者的服务，还可以通过`http://服务提供者地址/acturtor`查看所有可以查看的Dubbo监控端点，如``http://服务提供者地址/acturtor/dubbo/configs``等
+3. 编写消费者服务实现，对生产者服务进行远程调用
+
+```java
+@RestController
+public class ServiceController {
+    /**
+     * @Description 服务消费者的Controller，通过Dubbo实现对于服务的远程调用，同时又注册到Nacos提供服务
+     */
+    @Reference(version = "1.0.0")
+    private ProviderService providerService;
+
+    @GetMapping("/hello/{msg}")
+    public String getHello(@PathVariable("msg") String msg) {
+        return providerService.sayHello(msg);
+    }
+}
+```
+
+4. 访问服务消费者测试是否能够间接调用服务提供者的服务，还可以通过`http://服务提供者地址/acturtor`查看所有可以查看的Dubbo监控端点，如``http://服务提供者地址/acturtor/dubbo/configs``等
 
 
 
